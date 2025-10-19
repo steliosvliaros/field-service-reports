@@ -13,7 +13,7 @@
             background: #f3f4f6;
         }
         .container {
-            max-width: 900px;
+            max-width: 1000px;
             margin: 0 auto;
         }
         .header {
@@ -113,12 +113,9 @@
             max-width: 400px;
             display: block;
         }
-        .audio-player {
-            margin-top: 10px;
-        }
         audio {
             width: 100%;
-            margin-bottom: 10px;
+            margin: 10px 0;
         }
         button {
             padding: 12px 24px;
@@ -146,13 +143,51 @@
             justify-content: center;
         }
         input[type="file"] { display: none; }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: system-ui, -apple-system, sans-serif;
+            margin-top: 10px;
+            min-height: 100px;
+        }
+        .transcription-section {
+            background: #fef3c7;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .transcription-section h3 {
+            color: #92400e;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .company-settings {
+            background: #eff6ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .company-settings h3 {
+            color: #1e40af;
+            margin-bottom: 15px;
+        }
+        .company-settings input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>Service Report Viewer & PDF Generator</h1>
-            <p>Upload JSON report files to view and generate PDF reports</p>
+            <p>Upload JSON report files, transcribe audio, and generate PDF reports</p>
         </div>
 
         <div class="upload-section">
@@ -166,16 +201,28 @@
             <input type="file" id="fileInput" accept=".json">
         </div>
 
-        <div class="report-content" id="reportContent"></div>
+        <div class="report-content" id="reportContent">
+            <div class="company-settings section">
+                <h3>📋 Company Information (for PDF Header)</h3>
+                <input type="text" id="companyName" placeholder="Company Name">
+                <input type="text" id="companyAddress" placeholder="Company Address">
+                <input type="tel" id="companyPhone" placeholder="Company Phone">
+                <input type="email" id="companyEmail" placeholder="Company Email">
+                <label style="display: block; margin-top: 10px; font-size: 14px; color: #4b5563;">
+                    Company Logo URL (optional):
+                    <input type="url" id="companyLogo" placeholder="https://example.com/logo.png" style="margin-top: 5px;">
+                </label>
+            </div>
+            
+            <div id="reportView"></div>
+        </div>
     </div>
 
     <script>
         let currentReport = null;
-
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
 
-        // Drag and drop handlers
         dropZone.addEventListener('click', () => fileInput.click());
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -215,14 +262,19 @@
 
         function displayReport(data) {
             const content = document.getElementById('reportContent');
+            content.style.display = 'block';
             
             let html = `
                 <h1 style="color: #1f2937; margin-bottom: 30px; text-align: center;">
-                    Field Service Report
+                    Field Service Report - WO #${data.workOrderId || 'N/A'}
                 </h1>
 
                 <div class="section">
                     <h2>📋 Report Information</h2>
+                    <div class="info-row">
+                        <span class="label">Work Order ID:</span>
+                        <span class="value">${data.workOrderId || 'N/A'}</span>
+                    </div>
                     <div class="info-row">
                         <span class="label">Report Date:</span>
                         <span class="value">${new Date(data.reportDate).toLocaleString()}</span>
@@ -232,89 +284,93 @@
                 <div class="section">
                     <h2>👤 Customer Information</h2>
                     <div class="info-row">
-                        <span class="label">Name:</span>
+                        <span class="label">Customer Name:</span>
                         <span class="value">${data.customer.name || 'N/A'}</span>
                     </div>
                     <div class="info-row">
-                        <span class="label">Address:</span>
-                        <span class="value">${data.customer.address || 'N/A'}</span>
+                        <span class="label">Lead Name:</span>
+                        <span class="value">${data.customer.leadName || 'N/A'}</span>
                     </div>
                     <div class="info-row">
-                        <span class="label">Phone:</span>
-                        <span class="value">${data.customer.phone || 'N/A'}</span>
+                        <span class="label">Lead Phone:</span>
+                        <span class="value">${data.customer.leadPhone || 'N/A'}</span>
                     </div>
+                    <div class="info-row">
+                        <span class="label">Lead Contact:</span>
+                        <span class="value">${data.customer.leadContact || 'N/A'}</span>
+                    </div>
+            `;
+
+            if (data.customer.gpsCoords) {
+                html += `
+                    <div class="info-row">
+                        <span class="label">GPS Location:</span>
+                        <span class="value">${data.customer.gpsCoords.latitude.toFixed(6)}, ${data.customer.gpsCoords.longitude.toFixed(6)}</span>
+                    </div>
+                `;
+            }
+
+            html += `
                 </div>
 
                 <div class="section">
                     <h2>⚙️ Machinery Information</h2>
                     <div class="info-row">
-                        <span class="label">Equipment Type:</span>
-                        <span class="value">${data.machinery.type || 'N/A'}</span>
+                        <span class="label">Manufacturer:</span>
+                        <span class="value">${data.machinery.manufacturer || 'N/A'}</span>
                     </div>
                     <div class="info-row">
-                        <span class="label">Serial Number:</span>
+                        <span class="label">Model:</span>
+                        <span class="value">${data.machinery.model || 'N/A'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">VIN/Serial Number:</span>
                         <span class="value">${data.machinery.serialNumber || 'N/A'}</span>
                     </div>
                     <div class="info-row">
-                        <span class="label">Location:</span>
-                        <span class="value">${data.machinery.location || 'N/A'}</span>
+                        <span class="label">Hours:</span>
+                        <span class="value">${data.machinery.hours || 'N/A'}</span>
                     </div>
                 </div>
 
                 <div class="section">
-                    <h2>🕐 Time Tracking & Vehicle Photos</h2>
-                    <div class="photo-grid">
+                    <h2>🕐 Time Tracking</h2>
             `;
 
             data.timeStamps.forEach(ts => {
                 html += `
-                    <div class="photo-card">
-                        <div class="photo-label">${ts.label}</div>
-                        <div class="photo-timestamp">${new Date(ts.timestamp).toLocaleString()}</div>
-                        <img src="${ts.photo}" alt="${ts.label}">
+                    <div class="info-row">
+                        <span class="label">${ts.label}:</span>
+                        <span class="value">${new Date(ts.timestamp).toLocaleString()}</span>
                     </div>
                 `;
             });
 
-            html += `
-                    </div>
-                </div>
+            html += `</div>`;
 
-                <div class="section">
-                    <h2>📸 Equipment Photos</h2>
-                    <div class="photo-grid">
-            `;
-
-            data.equipmentPhotos.forEach(photo => {
-                html += `
-                    <div class="photo-card">
-                        <div class="photo-label">${photo.label}</div>
-                        <div class="photo-timestamp">${new Date(photo.timestamp).toLocaleString()}</div>
-                        <img src="${photo.photo}" alt="${photo.label}">
-                    </div>
-                `;
-            });
-
-            html += `
-                    </div>
-                </div>
-            `;
-
-            if (data.audioRecordings && data.audioRecordings.length > 0) {
+            // Technician Report Audio & Transcription
+            if (data.recordings.report) {
                 html += `
                     <div class="section">
-                        <h2>🎤 Audio Reports</h2>
-                        <div class="audio-player">
-                `;
-                data.audioRecordings.forEach((audio, idx) => {
-                    html += `
-                        <div style="margin-bottom: 15px;">
-                            <strong>Recording ${idx + 1}</strong> - ${new Date(audio.timestamp).toLocaleString()}
-                            <audio controls src="${audio.audio}"></audio>
+                        <h2>🎤 Technician Report</h2>
+                        <audio controls src="${data.recordings.report.audio}"></audio>
+                        <div class="transcription-section">
+                            <h3>📝 Transcribe Report (type what the technician said):</h3>
+                            <textarea id="reportTranscript" placeholder="Type the technician's report here..."></textarea>
                         </div>
-                    `;
-                });
+                    </div>
+                `;
+            }
+
+            // Technician Comments Audio & Transcription
+            if (data.recordings.comments) {
                 html += `
+                    <div class="section">
+                        <h2>💬 Technician Comments</h2>
+                        <audio controls src="${data.recordings.comments.audio}"></audio>
+                        <div class="transcription-section">
+                            <h3>📝 Transcribe Comments (type what the technician said):</h3>
+                            <textarea id="commentsTranscript" placeholder="Type the technician's comments here..."></textarea>
                         </div>
                     </div>
                 `;
@@ -324,16 +380,12 @@
                 <div class="section">
                     <h2>🔧 Work Details</h2>
                     <div class="info-row">
-                        <span class="label">Work Performed:</span>
-                        <span class="value">${data.workDetails.description || 'N/A'}</span>
-                    </div>
-                    <div class="info-row">
                         <span class="label">Parts Used:</span>
                         <span class="value">${data.workDetails.partsUsed || 'N/A'}</span>
                     </div>
                     <div class="info-row">
-                        <span class="label">Comments:</span>
-                        <span class="value">${data.workDetails.comments || 'N/A'}</span>
+                        <span class="label">Additional Comments:</span>
+                        <span class="value">${data.workDetails.additionalComments || 'N/A'}</span>
                     </div>
                 </div>
 
@@ -344,67 +396,151 @@
                     </div>
                 </div>
 
+                <div class="section">
+                    <h2>📸 Photos (Annex)</h2>
+                    <div class="photo-grid">
+            `;
+
+            // Time tracking photos
+            data.timeStamps.forEach(ts => {
+                html += `
+                    <div class="photo-card">
+                        <div class="photo-label">${ts.label}</div>
+                        <div class="photo-timestamp">${new Date(ts.timestamp).toLocaleString()}</div>
+                        <img src="${ts.photo}" alt="${ts.label}">
+                    </div>
+                `;
+            });
+
+            // Equipment photos
+            if (data.equipmentPhotos.licensePlate) {
+                html += `
+                    <div class="photo-card">
+                        <div class="photo-label">${data.equipmentPhotos.licensePlate.label}</div>
+                        <div class="photo-timestamp">${new Date(data.equipmentPhotos.licensePlate.timestamp).toLocaleString()}</div>
+                        <img src="${data.equipmentPhotos.licensePlate.photo}" alt="License Plate">
+                    </div>
+                `;
+            }
+
+            if (data.equipmentPhotos.equipment) {
+                html += `
+                    <div class="photo-card">
+                        <div class="photo-label">${data.equipmentPhotos.equipment.label}</div>
+                        <div class="photo-timestamp">${new Date(data.equipmentPhotos.equipment.timestamp).toLocaleString()}</div>
+                        <img src="${data.equipmentPhotos.equipment.photo}" alt="Equipment">
+                    </div>
+                `;
+            }
+
+            html += `
+                    </div>
+                </div>
+
                 <div class="button-group">
                     <button class="btn-success" onclick="generatePDF()">📄 Generate PDF Report</button>
                     <button class="btn-primary" onclick="location.reload()">Upload Another Report</button>
                 </div>
             `;
 
-            content.innerHTML = html;
-            content.style.display = 'block';
+            document.getElementById('reportView').innerHTML = html;
         }
 
         async function generatePDF() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             const data = currentReport;
+            
+            // Get company info
+            const companyName = document.getElementById('companyName').value || 'Your Company Name';
+            const companyAddress = document.getElementById('companyAddress').value || '';
+            const companyPhone = document.getElementById('companyPhone').value || '';
+            const companyEmail = document.getElementById('companyEmail').value || '';
+            const companyLogo = document.getElementById('companyLogo').value;
+
+            // Get transcripts
+            const reportTranscript = document.getElementById('reportTranscript')?.value || '';
+            const commentsTranscript = document.getElementById('commentsTranscript')?.value || '';
+
             let yPos = 20;
 
-            // Title
-            doc.setFontSize(20);
-            doc.setFont(undefined, 'bold');
-            doc.text('Field Service Report', 105, yPos, { align: 'center' });
-            yPos += 15;
+            // Header with logo and company info
+            if (companyLogo) {
+                try {
+                    doc.addImage(companyLogo, 'PNG', 15, 10, 30, 30);
+                } catch (e) {
+                    console.log('Logo could not be loaded');
+                }
+            }
 
-            // Report Date
             doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.text(companyName, 200, 15, { align: 'right' });
             doc.setFont(undefined, 'normal');
-            doc.text(`Report Date: ${new Date(data.reportDate).toLocaleString()}`, 20, yPos);
-            yPos += 10;
+            doc.setFontSize(8);
+            if (companyAddress) doc.text(companyAddress, 200, 20, { align: 'right' });
+            if (companyPhone) doc.text('Tel: ' + companyPhone, 200, 25, { align: 'right' });
+            if (companyEmail) doc.text('Email: ' + companyEmail, 200, 30, { align: 'right' });
+
+            yPos = 45;
+
+            // Title
+            doc.setFontSize(18);
+            doc.setFont(undefined, 'bold');
+            doc.text('FIELD SERVICE REPORT', 105, yPos, { align: 'center' });
+            yPos += 12;
+
+            // Work Order
+            doc.setFontSize(12);
+            doc.text(`Work Order: ${data.workOrderId || 'N/A'}`, 105, yPos, { align: 'center' });
+            yPos += 8;
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'normal');
+            doc.text(`Report Date: ${new Date(data.reportDate).toLocaleString()}`, 105, yPos, { align: 'center' });
+            yPos += 12;
 
             // Customer Information
-            doc.setFontSize(14);
+            doc.setFontSize(12);
             doc.setFont(undefined, 'bold');
-            doc.text('Customer Information', 20, yPos);
-            yPos += 7;
+            doc.text('CUSTOMER INFORMATION', 20, yPos);
+            yPos += 6;
             doc.setFontSize(10);
             doc.setFont(undefined, 'normal');
-            doc.text(`Name: ${data.customer.name || 'N/A'}`, 20, yPos);
+            doc.text(`Customer Name: ${data.customer.name || 'N/A'}`, 20, yPos);
             yPos += 5;
-            doc.text(`Address: ${data.customer.address || 'N/A'}`, 20, yPos);
+            doc.text(`Lead Name: ${data.customer.leadName || 'N/A'}`, 20, yPos);
             yPos += 5;
-            doc.text(`Phone: ${data.customer.phone || 'N/A'}`, 20, yPos);
-            yPos += 10;
+            doc.text(`Lead Phone: ${data.customer.leadPhone || 'N/A'}`, 20, yPos);
+            yPos += 5;
+            doc.text(`Lead Contact: ${data.customer.leadContact || 'N/A'}`, 20, yPos);
+            yPos += 5;
+            if (data.customer.gpsCoords) {
+                doc.text(`GPS: ${data.customer.gpsCoords.latitude.toFixed(6)}, ${data.customer.gpsCoords.longitude.toFixed(6)}`, 20, yPos);
+                yPos += 5;
+            }
+            yPos += 5;
 
             // Machinery Information
-            doc.setFontSize(14);
+            doc.setFontSize(12);
             doc.setFont(undefined, 'bold');
-            doc.text('Machinery Information', 20, yPos);
-            yPos += 7;
+            doc.text('MACHINERY INFORMATION', 20, yPos);
+            yPos += 6;
             doc.setFontSize(10);
             doc.setFont(undefined, 'normal');
-            doc.text(`Equipment Type: ${data.machinery.type || 'N/A'}`, 20, yPos);
+            doc.text(`Manufacturer: ${data.machinery.manufacturer || 'N/A'}`, 20, yPos);
             yPos += 5;
-            doc.text(`Serial Number: ${data.machinery.serialNumber || 'N/A'}`, 20, yPos);
+            doc.text(`Model: ${data.machinery.model || 'N/A'}`, 20, yPos);
             yPos += 5;
-            doc.text(`Location: ${data.machinery.location || 'N/A'}`, 20, yPos);
+            doc.text(`VIN/Serial: ${data.machinery.serialNumber || 'N/A'}`, 20, yPos);
+            yPos += 5;
+            doc.text(`Hours: ${data.machinery.hours || 'N/A'}`, 20, yPos);
             yPos += 10;
 
-            // Time Stamps
-            doc.setFontSize(14);
+            // Time Tracking
+            doc.setFontSize(12);
             doc.setFont(undefined, 'bold');
-            doc.text('Time Tracking', 20, yPos);
-            yPos += 7;
+            doc.text('TIME TRACKING', 20, yPos);
+            yPos += 6;
             doc.setFontSize(10);
             doc.setFont(undefined, 'normal');
             data.timeStamps.forEach(ts => {
@@ -413,89 +549,143 @@
             });
             yPos += 5;
 
-            // Work Details
+            // Check if new page needed
             if (yPos > 250) {
                 doc.addPage();
                 yPos = 20;
             }
-            doc.setFontSize(14);
+
+            // Technician Report
+            if (reportTranscript) {
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text('TECHNICIAN REPORT', 20, yPos);
+                yPos += 6;
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+                const splitReport = doc.splitTextToSize(reportTranscript, 170);
+                doc.text(splitReport, 20, yPos);
+                yPos += splitReport.length * 5 + 5;
+            }
+
+            if (yPos > 250) {
+                doc.addPage();
+                yPos = 20;
+            }
+
+            // Technician Comments
+            if (commentsTranscript) {
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text('TECHNICIAN COMMENTS', 20, yPos);
+                yPos += 6;
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+                const splitComments = doc.splitTextToSize(commentsTranscript, 170);
+                doc.text(splitComments, 20, yPos);
+                yPos += splitComments.length * 5 + 5;
+            }
+
+            if (yPos > 240) {
+                doc.addPage();
+                yPos = 20;
+            }
+
+            // Work Details
+            doc.setFontSize(12);
             doc.setFont(undefined, 'bold');
-            doc.text('Work Details', 20, yPos);
-            yPos += 7;
+            doc.text('WORK DETAILS', 20, yPos);
+            yPos += 6;
             doc.setFontSize(10);
             doc.setFont(undefined, 'normal');
             
-            const splitDescription = doc.splitTextToSize(`Work Performed: ${data.workDetails.description || 'N/A'}`, 170);
-            doc.text(splitDescription, 20, yPos);
-            yPos += splitDescription.length * 5 + 3;
-
-            const splitParts = doc.splitTextToSize(`Parts Used: ${data.workDetails.partsUsed || 'N/A'}`, 170);
-            doc.text(splitParts, 20, yPos);
+            doc.text('Parts Used:', 20, yPos);
+            yPos += 5;
+            const splitParts = doc.splitTextToSize(data.workDetails.partsUsed || 'N/A', 170);
+            doc.text(splitParts, 25, yPos);
             yPos += splitParts.length * 5 + 3;
 
-            const splitComments = doc.splitTextToSize(`Comments: ${data.workDetails.comments || 'N/A'}`, 170);
-            doc.text(splitComments, 20, yPos);
+            doc.text('Additional Comments:', 20, yPos);
+            yPos += 5;
+            const splitComments = doc.splitTextToSize(data.workDetails.additionalComments || 'N/A', 170);
+            doc.text(splitComments, 25, yPos);
             yPos += splitComments.length * 5 + 10;
 
             // Signature
-            if (yPos > 200) {
+            if (yPos > 220) {
                 doc.addPage();
                 yPos = 20;
             }
-            doc.setFontSize(14);
+            doc.setFontSize(12);
             doc.setFont(undefined, 'bold');
-            doc.text('Customer Signature', 20, yPos);
+            doc.text('CUSTOMER SIGNATURE', 20, yPos);
             yPos += 7;
             if (data.signature) {
                 doc.addImage(data.signature, 'PNG', 20, yPos, 80, 30);
+                yPos += 35;
             }
 
-            // Add photos on new pages
-            if (data.timeStamps.length > 0) {
-                doc.addPage();
-                yPos = 20;
-                doc.setFontSize(14);
-                doc.setFont(undefined, 'bold');
-                doc.text('Vehicle Tracking Photos', 20, yPos);
-                yPos += 10;
+            // Photos Annex
+            doc.addPage();
+            yPos = 20;
+            doc.setFontSize(16);
+            doc.setFont(undefined, 'bold');
+            doc.text('ANNEX - PHOTOS', 105, yPos, { align: 'center' });
+            yPos += 15;
 
-                for (let ts of data.timeStamps) {
-                    if (yPos > 250) {
-                        doc.addPage();
-                        yPos = 20;
-                    }
-                    doc.setFontSize(10);
-                    doc.setFont(undefined, 'normal');
-                    doc.text(`${ts.label} - ${new Date(ts.timestamp).toLocaleString()}`, 20, yPos);
-                    yPos += 5;
-                    doc.addImage(ts.photo, 'JPEG', 20, yPos, 80, 60);
-                    yPos += 70;
+            // Time tracking photos
+            for (let ts of data.timeStamps) {
+                if (yPos > 240) {
+                    doc.addPage();
+                    yPos = 20;
                 }
-            }
-
-            if (data.equipmentPhotos.length > 0) {
-                doc.addPage();
-                yPos = 20;
-                doc.setFontSize(14);
+                doc.setFontSize(11);
                 doc.setFont(undefined, 'bold');
-                doc.text('Equipment Photos', 20, yPos);
-                yPos += 10;
-
-                for (let photo of data.equipmentPhotos) {
-                    if (yPos > 250) {
-                        doc.addPage();
-                        yPos = 20;
-                    }
-                    doc.setFontSize(10);
-                    doc.setFont(undefined, 'normal');
-                    doc.text(`${photo.label} - ${new Date(photo.timestamp).toLocaleString()}`, 20, yPos);
-                    yPos += 5;
-                    doc.addImage(photo.photo, 'JPEG', 20, yPos, 80, 60);
-                    yPos += 70;
-                }
+                doc.text(ts.label, 20, yPos);
+                yPos += 5;
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'normal');
+                doc.text(new Date(ts.timestamp).toLocaleString(), 20, yPos);
+                yPos += 7;
+                doc.addImage(ts.photo, 'JPEG', 20, yPos, 85, 64);
+                yPos += 72;
             }
 
-            doc.save(`service_report_${data.customer.name || 'customer'}_${Date.now()}.pdf`);
+            // Equipment photos
+            if (data.equipmentPhotos.licensePlate) {
+                if (yPos > 240) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                doc.setFontSize(11);
+                doc.setFont(undefined, 'bold');
+                doc.text('License Plate', 20, yPos);
+                yPos += 5;
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'normal');
+                doc.text(new Date(data.equipmentPhotos.licensePlate.timestamp).toLocaleString(), 20, yPos);
+                yPos += 7;
+                doc.addImage(data.equipmentPhotos.licensePlate.photo, 'JPEG', 20, yPos, 85, 64);
+                yPos += 72;
+            }
+
+            if (data.equipmentPhotos.equipment) {
+                if (yPos > 240) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                doc.setFontSize(11);
+                doc.setFont(undefined, 'bold');
+                doc.text('Equipment Photo', 20, yPos);
+                yPos += 5;
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'normal');
+                doc.text(new Date(data.equipmentPhotos.equipment.timestamp).toLocaleString(), 20, yPos);
+                yPos += 7;
+                doc.addImage(data.equipmentPhotos.equipment.photo, 'JPEG', 20, yPos, 85, 64);
+            }
+
+            doc.save(`service_report_WO${data.workOrderId}_${Date.now()}.pdf`);
         }
     </script>
 </body>
