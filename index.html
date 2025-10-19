@@ -43,7 +43,7 @@
             font-weight: 500;
             font-size: 14px;
         }
-        input, textarea {
+        input, textarea, select {
             width: 100%;
             padding: 10px;
             border: 1px solid #d1d5db;
@@ -88,6 +88,11 @@
         }
         .btn-audio:hover { background: #d97706; }
         .btn-audio.recording { background: #ef4444; animation: pulse 1s infinite; }
+        .btn-gps {
+            background: #06b6d4;
+            color: white;
+        }
+        .btn-gps:hover { background: #0891b2; }
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.7; }
@@ -111,18 +116,6 @@
             width: 100%;
             max-width: 500px;
         }
-        .audio-list {
-            margin-top: 10px;
-        }
-        .audio-item {
-            background: #f3f4f6;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
         .status {
             padding: 8px 12px;
             background: #dbeafe;
@@ -131,42 +124,79 @@
             font-size: 13px;
             color: #1e40af;
         }
+        .gps-coords {
+            font-size: 12px;
+            color: #059669;
+            margin-top: -10px;
+            margin-bottom: 10px;
+            font-family: monospace;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>Field Service Report</h1>
-        <p>Complete all fields and capture required photos</p>
+        <p>Complete all fields and capture required information</p>
     </div>
 
     <div class="status" id="status">Ready to start new report</div>
+
+    <div class="section">
+        <h2>Work Order</h2>
+        <label>Work Order ID</label>
+        <input type="number" id="workOrderId" placeholder="Enter work order number">
+    </div>
 
     <div class="section">
         <h2>Customer Information</h2>
         <label>Customer Name</label>
         <input type="text" id="customerName" placeholder="Enter customer name">
         
-        <label>Customer Address</label>
-        <input type="text" id="customerAddress" placeholder="Enter address">
+        <label>Lead Name</label>
+        <input type="text" id="leadName" placeholder="Enter lead/contact person name">
         
-        <label>Contact Number</label>
-        <input type="tel" id="customerPhone" placeholder="Enter phone number">
+        <label>Lead Phone</label>
+        <input type="tel" id="leadPhone" placeholder="Enter phone number">
+        
+        <label>Lead Contact</label>
+        <input type="text" id="leadContact" placeholder="Email or additional contact">
+        
+        <button class="btn-gps" onclick="getGPSLocation()">📍 Get GPS Coordinates</button>
+        <div id="gpsCoords" class="gps-coords"></div>
     </div>
 
     <div class="section">
         <h2>Machinery Information</h2>
-        <label>Equipment Type</label>
-        <input type="text" id="equipmentType" placeholder="e.g., Hydraulic Press">
+        <label>Manufacturer</label>
+        <select id="manufacturer">
+            <option value="">Select manufacturer</option>
+            <option value="RAVO">RAVO</option>
+            <option value="BAUMANN">BAUMANN</option>
+            <option value="MITSUBISHI">MITSUBISHI</option>
+            <option value="LIUGONG">LIUGONG</option>
+            <option value="CMC">CMC</option>
+            <option value="MECALAC">MECALAC</option>
+            <option value="TERBERG">TERBERG</option>
+        </select>
         
-        <label>Model/Serial Number</label>
-        <input type="text" id="serialNumber" placeholder="Enter model or serial number">
+        <label>Model</label>
+        <input type="text" id="model" placeholder="Enter model">
         
-        <label>Equipment Location</label>
-        <input type="text" id="equipmentLocation" placeholder="Building/Floor/Area">
+        <label>VIN/Serial Number</label>
+        <input type="text" id="serialNumber" placeholder="Enter VIN or serial number">
+        
+        <label>Hours</label>
+        <input type="number" id="hours" placeholder="Enter equipment hours">
+        
+        <div class="button-grid">
+            <button class="btn-photo" onclick="captureLicensePlate()">🚗 License Plate Photo</button>
+            <button class="btn-photo" onclick="captureEquipmentPhoto()">📸 Equipment Photo</button>
+        </div>
+        <div id="equipmentPhotos"></div>
     </div>
 
     <div class="section">
-        <h2>Time & Vehicle Tracking</h2>
+        <h2>Time Tracking</h2>
         <div class="button-grid">
             <button class="btn-primary" onclick="captureTimePhoto('departHQ')">📷 Leaving HQ</button>
             <button class="btn-primary" onclick="captureTimePhoto('arriveHQ')">📷 Returning to HQ</button>
@@ -177,28 +207,23 @@
     </div>
 
     <div class="section">
-        <h2>Equipment Photos</h2>
-        <button class="btn-photo" onclick="captureMachineryPhoto()">📸 Machinery Photo</button>
-        <button class="btn-photo" onclick="captureLicensePlate()">🚗 License Plate</button>
-        <div id="equipmentPhotos"></div>
-    </div>
-
-    <div class="section">
-        <h2>Audio Reports</h2>
-        <button class="btn-audio" id="recordBtn" onclick="toggleRecording()">🎤 Start Recording</button>
-        <div class="audio-list" id="audioList"></div>
-    </div>
-
-    <div class="section">
-        <h2>Work Description</h2>
-        <label>Work Performed</label>
-        <textarea id="workDescription" placeholder="Describe the work performed..."></textarea>
+        <h2>Technician Reports</h2>
+        <label>Technician Report Recording</label>
+        <button class="btn-audio" id="reportBtn" onclick="toggleRecording('report')">🎤 Record Report</button>
+        <div id="reportRecording"></div>
         
+        <label style="margin-top: 15px;">Technician Comments Recording</label>
+        <button class="btn-audio" id="commentsBtn" onclick="toggleRecording('comments')">🎤 Record Comments</button>
+        <div id="commentsRecording"></div>
+    </div>
+
+    <div class="section">
+        <h2>Work Details</h2>
         <label>Parts Used</label>
         <textarea id="partsUsed" placeholder="List parts and materials used..."></textarea>
         
         <label>Additional Comments</label>
-        <textarea id="comments" placeholder="Any additional notes or recommendations..."></textarea>
+        <textarea id="additionalComments" placeholder="Any additional notes or recommendations..."></textarea>
     </div>
 
     <div class="section">
@@ -217,18 +242,22 @@
     
     <script>
         const reportData = {
+            workOrderId: '',
             customer: {},
             machinery: {},
             timeStamps: [],
-            equipmentPhotos: [],
-            audioRecordings: [],
+            equipmentPhotos: {},
+            recordings: {
+                report: null,
+                comments: null
+            },
             workDetails: {},
             signature: null
         };
 
         let mediaRecorder;
         let audioChunks = [];
-        let isRecording = false;
+        let currentRecordingType = null;
 
         // Signature pad
         const canvas = document.getElementById('signatureCanvas');
@@ -283,6 +312,32 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
 
+        function getGPSLocation() {
+            if (!navigator.geolocation) {
+                alert('GPS not available on this device');
+                return;
+            }
+
+            document.getElementById('gpsCoords').textContent = 'Getting location...';
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const coords = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        accuracy: position.coords.accuracy
+                    };
+                    reportData.customer.gpsCoords = coords;
+                    document.getElementById('gpsCoords').textContent = 
+                        `📍 ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)} (±${coords.accuracy.toFixed(0)}m)`;
+                },
+                (error) => {
+                    document.getElementById('gpsCoords').textContent = 'Location unavailable';
+                    alert('Could not get GPS location: ' + error.message);
+                }
+            );
+        }
+
         async function captureTimePhoto(type) {
             const labels = {
                 departHQ: 'Leaving HQ',
@@ -322,27 +377,26 @@
             document.getElementById('timeStamps').appendChild(div);
         }
 
-        async function captureMachineryPhoto() {
-            captureEquipmentPhoto('machinery', 'Machinery');
+        function captureLicensePlate() {
+            capturePhoto('licensePlate', 'License Plate');
         }
 
-        async function captureLicensePlate() {
-            captureEquipmentPhoto('license', 'License Plate');
+        function captureEquipmentPhoto() {
+            capturePhoto('equipment', 'Equipment Photo');
         }
 
-        function captureEquipmentPhoto(type, label) {
+        function capturePhoto(type, label) {
             const input = document.getElementById('cameraInput');
             input.onchange = (e) => {
                 const file = e.target.files[0];
                 if (file) {
                     const reader = new FileReader();
                     reader.onload = (event) => {
-                        reportData.equipmentPhotos.push({
-                            type: type,
+                        reportData.equipmentPhotos[type] = {
                             label: label,
                             timestamp: new Date().toISOString(),
                             photo: event.target.result
-                        });
+                        };
                         displayEquipmentPhoto(label, event.target.result);
                     };
                     reader.readAsDataURL(file);
@@ -360,12 +414,16 @@
             document.getElementById('equipmentPhotos').appendChild(div);
         }
 
-        async function toggleRecording() {
-            if (!isRecording) {
+        async function toggleRecording(type) {
+            const btnId = type === 'report' ? 'reportBtn' : 'commentsBtn';
+            const btn = document.getElementById(btnId);
+            
+            if (currentRecordingType !== type) {
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     mediaRecorder = new MediaRecorder(stream);
                     audioChunks = [];
+                    currentRecordingType = type;
 
                     mediaRecorder.ondataavailable = (e) => {
                         audioChunks.push(e.data);
@@ -379,64 +437,68 @@
                                 timestamp: new Date().toISOString(),
                                 audio: event.target.result
                             };
-                            reportData.audioRecordings.push(audioData);
-                            displayAudioRecording(audioData);
+                            reportData.recordings[type] = audioData;
+                            displayRecording(type, audioData);
                         };
                         reader.readAsDataURL(audioBlob);
                         stream.getTracks().forEach(track => track.stop());
+                        currentRecordingType = null;
                     };
 
                     mediaRecorder.start();
-                    isRecording = true;
-                    document.getElementById('recordBtn').textContent = '⏹️ Stop Recording';
-                    document.getElementById('recordBtn').classList.add('recording');
+                    btn.textContent = '⏹️ Stop Recording';
+                    btn.classList.add('recording');
                 } catch (err) {
                     alert('Microphone access denied or unavailable');
                 }
             } else {
                 mediaRecorder.stop();
-                isRecording = false;
-                document.getElementById('recordBtn').textContent = '🎤 Start Recording';
-                document.getElementById('recordBtn').classList.remove('recording');
+                btn.textContent = type === 'report' ? '🎤 Record Report' : '🎤 Record Comments';
+                btn.classList.remove('recording');
             }
         }
 
-        function displayAudioRecording(audioData) {
-            const div = document.createElement('div');
-            div.className = 'audio-item';
-            div.innerHTML = `
-                <span>Recording ${reportData.audioRecordings.length} - ${new Date(audioData.timestamp).toLocaleTimeString()}</span>
-                <audio controls src="${audioData.audio}" style="height: 30px;"></audio>
+        function displayRecording(type, audioData) {
+            const containerId = type === 'report' ? 'reportRecording' : 'commentsRecording';
+            const container = document.getElementById(containerId);
+            container.innerHTML = `
+                <div style="margin-top: 10px; background: #f3f4f6; padding: 10px; border-radius: 4px;">
+                    <span style="font-size: 12px; color: #6b7280;">Recorded at ${new Date(audioData.timestamp).toLocaleTimeString()}</span>
+                    <audio controls src="${audioData.audio}" style="width: 100%; margin-top: 5px;"></audio>
+                </div>
             `;
-            document.getElementById('audioList').appendChild(div);
         }
 
         function saveReport() {
             // Collect all form data
+            reportData.workOrderId = document.getElementById('workOrderId').value;
+            
             reportData.customer = {
                 name: document.getElementById('customerName').value,
-                address: document.getElementById('customerAddress').value,
-                phone: document.getElementById('customerPhone').value
+                leadName: document.getElementById('leadName').value,
+                leadPhone: document.getElementById('leadPhone').value,
+                leadContact: document.getElementById('leadContact').value,
+                gpsCoords: reportData.customer.gpsCoords || null
             };
 
             reportData.machinery = {
-                type: document.getElementById('equipmentType').value,
+                manufacturer: document.getElementById('manufacturer').value,
+                model: document.getElementById('model').value,
                 serialNumber: document.getElementById('serialNumber').value,
-                location: document.getElementById('equipmentLocation').value
+                hours: document.getElementById('hours').value
             };
 
             reportData.workDetails = {
-                description: document.getElementById('workDescription').value,
                 partsUsed: document.getElementById('partsUsed').value,
-                comments: document.getElementById('comments').value
+                additionalComments: document.getElementById('additionalComments').value
             };
 
             reportData.signature = canvas.toDataURL();
             reportData.reportDate = new Date().toISOString();
 
             // Validation
-            if (!reportData.customer.name || !reportData.machinery.type) {
-                alert('Please fill in at least Customer Name and Equipment Type');
+            if (!reportData.workOrderId || !reportData.customer.name || !reportData.machinery.manufacturer) {
+                alert('Please fill in Work Order ID, Customer Name, and Manufacturer');
                 return;
             }
 
@@ -446,7 +508,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `service_report_${Date.now()}.json`;
+            a.download = `service_report_${reportData.workOrderId}_${Date.now()}.json`;
             a.click();
             URL.revokeObjectURL(url);
 
