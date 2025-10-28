@@ -174,6 +174,71 @@
         </div>
 
         <div class="upload-section">
+            <div style="background: #eff6ff; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <h3 style="color: #1e40af; margin-bottom: 15px;">GitHub Repository Settings</h3>
+                <label style="display:block; margin-bottom:5px; color:#4b5563; font-weight:500;">GitHub Repository</label>
+                <input type="text" id="viewerGithubRepo" placeholder="username/repository-name" 
+                    style="width:100%; padding:10px; border:1px solid #d1d5db; border-radius:4px; margin-bottom:10px;">
+                <button class="btn-primary" onclick="loadReportsFromGitHub()">Load Reports from GitHub</button>
+                
+                <!-- Search and Filter Section -->
+                <div id="searchSection" style="display:none; margin-top:20px; padding-top:20px; border-top:2px solid #cbd5e1;">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
+                        <div>
+                            <label style="display:block; margin-bottom:5px; color:#4b5563; font-weight:500; font-size:13px;">Search Work Order</label>
+                            <input type="text" id="searchWorkOrder" placeholder="Enter WO #" 
+                                style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:4px;"
+                                onkeyup="filterReports()">
+                        </div>
+                        <div>
+                            <label style="display:block; margin-bottom:5px; color:#4b5563; font-weight:500; font-size:13px;">Search Customer</label>
+                            <input type="text" id="searchCustomer" placeholder="Customer name" 
+                                style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:4px;"
+                                onkeyup="filterReports()">
+                        </div>
+                    </div>
+                    
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:15px;">
+                        <div>
+                            <label style="display:block; margin-bottom:5px; color:#4b5563; font-weight:500; font-size:13px;">From Date</label>
+                            <input type="date" id="filterDateFrom" 
+                                style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:4px;"
+                                onchange="filterReports()">
+                        </div>
+                        <div>
+                            <label style="display:block; margin-bottom:5px; color:#4b5563; font-weight:500; font-size:13px;">To Date</label>
+                            <input type="date" id="filterDateTo" 
+                                style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:4px;"
+                                onchange="filterReports()">
+                        </div>
+                        <div>
+                            <label style="display:block; margin-bottom:5px; color:#4b5563; font-weight:500; font-size:13px;">Manufacturer</label>
+                            <select id="filterManufacturer" 
+                                style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:4px;"
+                                onchange="filterReports()">
+                                <option value="">All</option>
+                                <option value="RAVO">RAVO</option>
+                                <option value="BAUMANN">BAUMANN</option>
+                                <option value="MITSUBISHI">MITSUBISHI</option>
+                                <option value="LIUGONG">LIUGONG</option>
+                                <option value="CMC">CMC</option>
+                                <option value="MECALAC">MECALAC</option>
+                                <option value="TERBERG">TERBERG</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <button class="btn-primary" onclick="clearFilters()" style="padding:8px 16px; font-size:13px;">
+                            Clear Filters
+                        </button>
+                        <span id="resultsCount" style="color:#6b7280; font-size:13px;"></span>
+                    </div>
+                </div>
+                
+                <div id="reportsList" style="margin-top: 15px;"></div>
+            </div>
+            
             <div class="drop-zone" id="dropZone">
                 <h2 style="margin-bottom: 20px;">Drop JSON File Here</h2>
                 <p style="color: #6b7280; margin-bottom: 20px;">or click to browse</p>
@@ -200,8 +265,191 @@
         };
 
         let currentReport = null;
+        let allReportsData = []; // Store all report data for filtering
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
+
+        // Load saved GitHub repo
+        if (localStorage.getItem('viewerGithubRepo')) {
+            document.getElementById('viewerGithubRepo').value = localStorage.getItem('viewerGithubRepo');
+        }
+
+        async function loadReportsFromGitHub() {
+            const repo = document.getElementById('viewerGithubRepo').value.trim();
+            if (!repo) {
+                alert('Please enter repository name (username/repository-name)');
+                return;
+            }
+
+            localStorage.setItem('viewerGithubRepo', repo);
+            const reportsList = document.getElementById('reportsList');
+            reportsList.innerHTML = '<p style="color:#6b7280;">Loading reports...</p>';
+            document.getElementById('searchSection').style.display = 'none';
+
+            try {
+                const response = await fetch(`https://api.github.com/repos/${repo}/contents/reports`);
+                
+                if (!response.ok) {
+                    throw new Error('Could not access repository. Make sure it exists and is public, or provide a token.');
+                }
+
+                const files = await response.json();
+                const jsonFiles = files.filter(f => f.name.endsWith('.json'));
+
+                if (jsonFiles.length === 0) {
+                    reportsList.innerHTML = '<p style="color:#6b7280;">No reports found in repository.</p>';
+                    return;
+                }
+
+                // Load all report data
+                allReportsData = [];
+                for (const file of jsonFiles) {
+                    try {
+                        const dataResponse = await fetch(file.download_url);
+                        const reportData = await dataResponse.json();
+                        
+                        const match = file.name.match(/service_report_(\d+)_(\d+)\.json/);
+                        allReportsData.push({
+                            filename: file.name,
+                            url: file.download_url,
+                            workOrder: match ? match[1] : 'N/A',
+                            timestamp: match ? parseInt(match[2]) : 0,
+                            data: reportData
+                        });
+                    } catch (e) {
+                        console.error('Error loading report:', file.name, e);
+                    }
+                }
+
+                // Sort by timestamp (newest first)
+                allReportsData.sort((a, b) => b.timestamp - a.timestamp);
+
+                // Show search section
+                document.getElementById('searchSection').style.display = 'block';
+                
+                // Display all reports
+                displayFilteredReports(allReportsData);
+                
+            } catch (error) {
+                reportsList.innerHTML = `<p style="color:#ef4444;">Error: ${error.message}</p>`;
+            }
+        }
+
+        function displayFilteredReports(reports) {
+            const reportsList = document.getElementById('reportsList');
+            const resultsCount = document.getElementById('resultsCount');
+            
+            resultsCount.textContent = `Showing ${reports.length} of ${allReportsData.length} reports`;
+
+            if (reports.length === 0) {
+                reportsList.innerHTML = '<p style="color:#6b7280; margin-top:15px;">No reports match your filters.</p>';
+                return;
+            }
+
+            let html = '<div style="max-height:400px; overflow-y:auto; margin-top:15px;">';
+            html += '<table style="width:100%; border-collapse:collapse; font-size:13px;">';
+            html += `<tr style="background:#f3f4f6; font-weight:600; position:sticky; top:0;">
+                        <td style="padding:8px;">WO#</td>
+                        <td style="padding:8px;">Customer</td>
+                        <td style="padding:8px;">Manufacturer</td>
+                        <td style="padding:8px;">Date</td>
+                        <td style="padding:8px;">Action</td>
+                     </tr>`;
+            
+            reports.forEach(report => {
+                const date = new Date(report.timestamp).toLocaleDateString();
+                const customer = report.data.customer?.name || 'N/A';
+                const manufacturer = report.data.machinery?.manufacturer || 'N/A';
+                
+                html += `<tr style="border-bottom:1px solid #e5e7eb;">
+                    <td style="padding:8px; font-weight:600;">${report.workOrder}</td>
+                    <td style="padding:8px;">${customer}</td>
+                    <td style="padding:8px;">${manufacturer}</td>
+                    <td style="padding:8px; color:#6b7280;">${date}</td>
+                    <td style="padding:8px;">
+                        <button class="btn-primary" style="padding:6px 12px; font-size:12px;" 
+                            onclick="loadReportFromGitHub('${report.url}')">Open</button>
+                    </td>
+                </tr>`;
+            });
+            
+            html += '</table></div>';
+            reportsList.innerHTML = html;
+        }
+
+        function filterReports() {
+            const searchWO = document.getElementById('searchWorkOrder').value.toLowerCase().trim();
+            const searchCustomer = document.getElementById('searchCustomer').value.toLowerCase().trim();
+            const dateFrom = document.getElementById('filterDateFrom').value;
+            const dateTo = document.getElementById('filterDateTo').value;
+            const manufacturer = document.getElementById('filterManufacturer').value;
+
+            const filtered = allReportsData.filter(report => {
+                // Work Order filter
+                if (searchWO && !report.workOrder.toLowerCase().includes(searchWO)) {
+                    return false;
+                }
+
+                // Customer filter
+                if (searchCustomer) {
+                    const customerName = report.data.customer?.name || '';
+                    if (!customerName.toLowerCase().includes(searchCustomer)) {
+                        return false;
+                    }
+                }
+
+                // Date range filter
+                if (dateFrom) {
+                    const reportDate = new Date(report.timestamp);
+                    const fromDate = new Date(dateFrom);
+                    if (reportDate < fromDate) {
+                        return false;
+                    }
+                }
+
+                if (dateTo) {
+                    const reportDate = new Date(report.timestamp);
+                    const toDate = new Date(dateTo);
+                    toDate.setHours(23, 59, 59); // Include entire end date
+                    if (reportDate > toDate) {
+                        return false;
+                    }
+                }
+
+                // Manufacturer filter
+                if (manufacturer) {
+                    const reportManufacturer = report.data.machinery?.manufacturer || '';
+                    if (reportManufacturer !== manufacturer) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+
+            displayFilteredReports(filtered);
+        }
+
+        function clearFilters() {
+            document.getElementById('searchWorkOrder').value = '';
+            document.getElementById('searchCustomer').value = '';
+            document.getElementById('filterDateFrom').value = '';
+            document.getElementById('filterDateTo').value = '';
+            document.getElementById('filterManufacturer').value = '';
+            displayFilteredReports(allReportsData);
+        }
+
+        async function loadReportFromGitHub(url) {
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                currentReport = data;
+                displayReport(data);
+                window.scrollTo({ top: document.getElementById('reportContent').offsetTop - 20, behavior: 'smooth' });
+            } catch (error) {
+                alert('Error loading report: ' + error.message);
+            }
+        }
 
         dropZone.addEventListener('click', () => fileInput.click());
         dropZone.addEventListener('dragover', (e) => {
