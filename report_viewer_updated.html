@@ -720,4 +720,135 @@
             doc.text(`Model: ${data.machinery.model || 'N/A'}`, 20, yPos);
             yPos += 5;
             doc.text(`VIN/Serial: ${data.machinery.serialNumber || 'N/A'}`, 20, yPos);
-            y
+            yPos += 5;
+            doc.text(`Hours: ${data.machinery.hours || 'N/A'}`, 20, yPos);
+            yPos += 10;
+
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text('TIME TRACKING', 20, yPos);
+            yPos += 6;
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            data.timeStamps.forEach(ts => {
+                doc.text(`${ts.label}: ${new Date(ts.timestamp).toLocaleString()}`, 20, yPos);
+                yPos += 5;
+            });
+            yPos += 5;
+
+            if (yPos > 250) {
+                doc.addPage();
+                yPos = 20;
+            }
+
+            if (reportTranscript) {
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text('TECHNICIAN REPORT', 20, yPos);
+                yPos += 6;
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+                const splitReport = doc.splitTextToSize(reportTranscript, 170);
+                doc.text(splitReport, 20, yPos);
+                yPos += splitReport.length * 5 + 5;
+            }
+
+            if (yPos > 250) {
+                doc.addPage();
+                yPos = 20;
+            }
+
+            if (commentsTranscript) {
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text('TECHNICIAN COMMENTS', 20, yPos);
+                yPos += 6;
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+                const splitComments = doc.splitTextToSize(commentsTranscript, 170);
+                doc.text(splitComments, 20, yPos);
+                yPos += splitComments.length * 5 + 5;
+            }
+
+            if (yPos > 240) {
+                doc.addPage();
+                yPos = 20;
+            }
+
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text('WORK DETAILS', 20, yPos);
+            yPos += 6;
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            
+            doc.text('Parts Used:', 20, yPos);
+            yPos += 5;
+            const splitParts = doc.splitTextToSize(data.workDetails.partsUsed || 'N/A', 170);
+            doc.text(splitParts, 25, yPos);
+            yPos += splitParts.length * 5 + 3;
+
+            doc.text('Additional Comments:', 20, yPos);
+            yPos += 5;
+            const splitComments2 = doc.splitTextToSize(data.workDetails.additionalComments || 'N/A', 170);
+            doc.text(splitComments2, 25, yPos);
+            yPos += splitComments2.length * 5 + 10;
+
+            if (yPos > 220) {
+                doc.addPage();
+                yPos = 20;
+            }
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text('CUSTOMER SIGNATURE', 20, yPos);
+            yPos += 7;
+            if (data.signature) {
+                doc.addImage(data.signature, 'PNG', 20, yPos, 80, 30);
+                yPos += 35;
+            }
+
+            doc.addPage();
+            yPos = 20;
+            doc.setFontSize(16);
+            doc.setFont(undefined, 'bold');
+            doc.text('ANNEX - PHOTOS', 105, yPos, { align: 'center' });
+            yPos += 15;
+
+            if (data.equipmentPhotos.licensePlate) {
+                if (yPos > 240) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                doc.setFontSize(11);
+                doc.setFont(undefined, 'bold');
+                doc.text('License Plate', 20, yPos);
+                yPos += 5;
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'normal');
+                doc.text(new Date(data.equipmentPhotos.licensePlate.timestamp).toLocaleString(), 20, yPos);
+                yPos += 7;
+                doc.addImage(data.equipmentPhotos.licensePlate.photo, 'JPEG', 20, yPos, 85, 64);
+                yPos += 72;
+            }
+
+            if (data.equipmentPhotos.equipment) {
+                if (yPos > 240) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                doc.setFontSize(11);
+                doc.setFont(undefined, 'bold');
+                doc.text('Equipment Photo', 20, yPos);
+                yPos += 5;
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'normal');
+                doc.text(new Date(data.equipmentPhotos.equipment.timestamp).toLocaleString(), 20, yPos);
+                yPos += 7;
+                doc.addImage(data.equipmentPhotos.equipment.photo, 'JPEG', 20, yPos, 85, 64);
+            }
+
+            doc.save(`service_report_WO${data.workOrderId}_${Date.now()}.pdf`);
+        }
+    </script>
+</body>
+</html>
