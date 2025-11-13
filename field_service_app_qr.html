@@ -402,6 +402,43 @@
                 document.getElementById('qrModal').style.display = 'none';
             }
         }
+        
+        // QR image uploader functions
+        function uploadQRImage() {
+    // Create or reuse hidden file input for selecting an image
+    let fileInput = document.getElementById("qrImageInput");
+    if (!fileInput) {
+        fileInput = document.createElement("input");
+        fileInput.type = "file";
+        fileInput.accept = "image/*";
+        fileInput.id = "qrImageInput";
+        fileInput.style.display = "none";
+        document.body.appendChild(fileInput);
+    }
+
+    fileInput.onchange = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const imageData = e.target.result;
+            try {
+                const qrCode = new Html5Qrcode("reader-temp");
+                const result = await qrCode.scanFile(file, true);
+                const qrData = JSON.parse(result);
+                fillFormFromQR(qrData);
+                alert("QR data loaded successfully!");
+            } catch (err) {
+                alert("Failed to read QR code from image: " + err.message);
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
+    // Trigger file selection dialog
+    fileInput.click();
+}
 
         function fillFormFromQR(qrData) {
             // Fill work order
