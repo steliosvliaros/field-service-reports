@@ -195,11 +195,17 @@
     <div class="status" id="status">Ready to start new report</div>
 
     <div class="section">
-        <button class="btn-qr" onclick="openQRScanner()" style="width: 100%; padding: 15px; font-size: 16px;">
-            📷 Scan Work Order QR Code
-        </button>
+        <h2>Load Work Order</h2>
+        <div class="button-grid">
+            <button class="btn-qr" onclick="openQRScanner()" style="padding: 15px; font-size: 15px;">
+                📷 Scan QR Code
+            </button>
+            <button class="btn-qr" onclick="document.getElementById('qrImageInput').click()" style="padding: 15px; font-size: 15px;">
+                🖼️ Upload QR Image
+            </button>
+        </div>
         <p style="font-size: 12px; color: #6b7280; margin-top: 10px; text-align: center;">
-            Scan QR code to auto-fill work order details
+            Scan with camera or upload a QR code image to auto-fill work order details
         </p>
     </div>
 
