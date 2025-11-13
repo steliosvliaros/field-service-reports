@@ -415,37 +415,38 @@
                 document.body.appendChild(fileInput);
             }
         
+            // 🟢 Create a hidden div for html5-qrcode to use
+            let readerDiv = document.getElementById("reader-temp");
+            if (!readerDiv) {
+                readerDiv = document.createElement("div");
+                readerDiv.id = "reader-temp";
+                readerDiv.style.display = "none"; // invisible but present in DOM
+                document.body.appendChild(readerDiv);
+            }
+        
             fileInput.onchange = async (event) => {
                 const file = event.target.files[0];
                 if (!file) return;
         
-                const html5QrCode = new Html5Qrcode("reader-temp"); // virtual element
+                const html5QrCode = new Html5Qrcode("reader-temp");
+        
                 try {
                     const decodedText = await html5QrCode.scanFile(file, true);
                     console.log("Decoded QR:", decodedText);
         
-                    // Try to parse JSON
                     let qrData;
                     try {
                         qrData = JSON.parse(decodedText);
-                    } catch {
-                        // Not valid JSON
-                        document.getElementById('status').textContent = "QR decoded, but format not recognized.";
-                        document.getElementById('status').style.background = '#fee2e2';
-                        document.getElementById('status').style.color = '#991b1b';
-                        alert("QR code decoded successfully, but content is not JSON:\n\n" + decodedText);
-                        return;
+                        fillFormFromQR(qrData);
+                        document.getElementById('status').textContent = "QR image decoded successfully!";
+                        document.getElementById('status').style.background = '#d1fae5';
+                        document.getElementById('status').style.color = '#065f46';
+                    } catch (e) {
+                        alert("QR decoded but not valid JSON:\n" + decodedText);
                     }
-        
-                    // If valid JSON, fill the form
-                    fillFormFromQR(qrData);
-                    document.getElementById('status').textContent = "QR image decoded successfully!";
-                    document.getElementById('status').style.background = '#d1fae5';
-                    document.getElementById('status').style.color = '#065f46';
-        
                 } catch (err) {
                     console.error("QR decode error:", err);
-                    alert("Failed to read QR code from image.\nPlease ensure it's a clear QR and try again.");
+                    alert("Failed to read QR code from image.\nMake sure it’s a clear, valid QR code image.");
                 } finally {
                     html5QrCode.clear();
                 }
@@ -453,7 +454,6 @@
         
             fileInput.click();
         }
-
 
         function fillFormFromQR(qrData) {
             // Fill work order
