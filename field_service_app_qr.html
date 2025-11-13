@@ -404,8 +404,7 @@
         }
         
         // QR image uploader functions
-        function uploadQRImage() {
-            // Create or reuse hidden file input for selecting an image
+        async function uploadQRImage() {
             let fileInput = document.getElementById("qrImageInput");
             if (!fileInput) {
                 fileInput = document.createElement("input");
@@ -420,25 +419,30 @@
                 const file = event.target.files[0];
                 if (!file) return;
         
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const imageData = e.target.result;
+                const html5QrCode = new Html5Qrcode("reader-temp"); // temporary virtual element
+                try {
+                    const decodedText = await html5QrCode.scanFile(file, true);
+                    console.log("Decoded QR:", decodedText);
                     try {
-                        const qrCode = new Html5Qrcode("reader-temp");
-                        const result = await qrCode.scanFile(file, true);
-                        const qrData = JSON.parse(result);
+                        const qrData = JSON.parse(decodedText);
                         fillFormFromQR(qrData);
-                        alert("QR data loaded successfully!");
-                    } catch (err) {
-                        alert("Failed to read QR code from image: " + err.message);
+                        document.getElementById('status').textContent = "QR image decoded successfully!";
+                        document.getElementById('status').style.background = '#d1fae5';
+                        document.getElementById('status').style.color = '#065f46';
+                    } catch (e) {
+                        alert("QR decoded but not valid JSON:\n" + decodedText);
                     }
-                };
-                reader.readAsDataURL(file);
+                } catch (err) {
+                    console.error("QR decode error:", err);
+                    alert("Failed to read QR code from image.\nPlease ensure it's a clear QR and try again.");
+                } finally {
+                    html5QrCode.clear();
+                }
             };
         
-            // Trigger file selection dialog
             fileInput.click();
         }
+
 
         function fillFormFromQR(qrData) {
             // Fill work order
